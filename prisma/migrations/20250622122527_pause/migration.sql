@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "PauseNote" ALTER COLUMN "pausedAt" SET DATA TYPE TEXT;
+
+-- AlterTable
+ALTER TABLE "User" ALTER COLUMN "image1" DROP NOT NULL,
+ALTER COLUMN "image2" DROP NOT NULL;
