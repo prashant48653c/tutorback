@@ -31,7 +31,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
- 
 // Signup route - accepts images 'image1' and 'image2'
 app.post(
   "/signup",
@@ -52,14 +51,18 @@ app.post(
     }
 
     // Save user with file paths
-    const image1=`${process.env.BASE_URL}/${ req.files["image1"] ? req.files["image1"][0].path :""}`;
-    const image2=`${process.env.BASE_URL}/${ req.files["image2"] ? req.files["image2"][0].path :""}`;
+    const image1 = `${process.env.BASE_URL}/${
+      req.files["image1"] ? req.files["image1"][0].path : ""
+    }`;
+    const image2 = `${process.env.BASE_URL}/${
+      req.files["image2"] ? req.files["image2"][0].path : ""
+    }`;
     const localUser = {
       name: firstName + " " + lastName,
       email,
       password,
-      image1 ,
-      image2
+      image1,
+      image2,
     };
 
     try {
@@ -95,64 +98,77 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.post("/project", upload.fields([
-  { name: "image1", maxCount: 1 },
-  { name: "image2", maxCount: 1 },
-]), async (req, res) => {
-  try {
-    const { userId, projectName, gap, totalNumbers, currentState } = req.body;
-    const id = parseInt(userId);
+app.post(
+  "/project",
+  upload.fields([
+    { name: "image1", maxCount: 1 },
+    { name: "image2", maxCount: 1 },
+  ]),
+  async (req, res) => {
+    try {
+      const { userId, projectName, gap, totalNumbers, currentState } = req.body;
+      const id = parseInt(userId);
 
-    const user = await prisma.user.findUnique({ where: { id } });
-    if (!user) {
-      return res.status(401).json({ message: "Invalid User" });
+      const user = await prisma.user.findUnique({ where: { id } });
+      if (!user) {
+        return res.status(401).json({ message: "Invalid User" });
+      }
+
+      const image1 = `${process.env.BASE_URL}/${
+        req.files["image1"] ? req.files["image1"][0].path : ""
+      }`;
+      const image2 = `${process.env.BASE_URL}/${
+        req.files["image2"] ? req.files["image2"][0].path : ""
+      }`;
+
+      const project = await prisma.project.create({
+        data: {
+          projectName,
+          gap: gap.toString(),
+          totalNumbers,
+          currentState: parseInt(currentState),
+          userId: id,
+          image1,
+          image2,
+        },
+      });
+
+      res.json({ message: "Project creation successful", project });
+    } catch (error) {
+      console.error("Project creation error:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
-
-     const image1=`${process.env.BASE_URL}/${ req.files["image1"] ? req.files["image1"][0].path :""}`;
-    const image2=`${process.env.BASE_URL}/${ req.files["image2"] ? req.files["image2"][0].path :""}`;
-
-    const project = await prisma.project.create({
-      data: {
-        projectName,
-        gap: gap.toString(),
-        totalNumbers,
-        currentState: parseInt(currentState),
-        userId: id,
-        image1,
-        image2,
-      },
-    });
-
-    res.json({ message: "Project creation successful", project });
-  } catch (error) {
-    console.error("Project creation error:", error);
-    res.status(500).json({ message: "Internal server error" });
   }
-});
+);
 
 // Update the project currentState
 app.patch("/project/:id", async (req, res) => {
   const id = parseInt(req.params.id);
-  const { currentState,pauseAt,note } = req.body;
+  const { currentState, pauseAt, note, passedTime,handledBy,projectName,gap } = req.body;
 
-  if (typeof currentState !== "number") {
-    return res.status(400).json({ message: "Invalid currentState" });
-  }
+  // Prepare data object dynamically
+  const dataToUpdate = {};
 
-  try {
-   const updatedProject = await prisma.project.update({
-  where: { id },
-  data: {
-    currentState,
-    pauseNotes: {
+  dataToUpdate.currentState = parseInt(currentState);
+  dataToUpdate.passedTime = (passedTime);
+  dataToUpdate.handledBy = (handledBy);
+  dataToUpdate.projectName = projectName;
+  dataToUpdate.gap = gap;
+  // Only create pauseNote if both fields exist
+  if (pauseAt !== undefined && note) {
+    dataToUpdate.pauseNotes = {
       create: {
         pausedAt: pauseAt,
         note: note,
       },
-    },
-  },
-});
-
+    };
+  }
+console.log(dataToUpdate)
+  try {
+    const updatedProject = await prisma.project.update({
+      where: { id },
+      data: dataToUpdate,
+    });
 
     res.json({ project: updatedProject });
   } catch (error) {
@@ -182,12 +198,12 @@ app.get("/projects/:userId", async (req, res) => {
     const totalCount = await prisma.project.count({
       where: {
         userId,
-        ...(search && {
-          projectName: {
-            contains: search,
-            mode: "insensitive",
-          },
-        }),
+        projectName: search
+          ? {
+              contains: search,
+              mode: "insensitive",
+            }
+          : undefined, // this is OK
       },
     });
 
@@ -221,7 +237,6 @@ app.get("/projects/:userId", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
 
 // Start server
 app.listen(PORT, () => {

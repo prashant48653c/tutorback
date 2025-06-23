@@ -37,6 +37,8 @@ model Project {
   image2       String?        @default("https://www.gravatar.com/avatar/?d=mp")
   gap          String?
   currentState Int          @default(0)
+  handledBy    String?  @default("Self-assigned")
+  passedTime   String?   @default("0")        // how much time has passed
   pauseNotes   PauseNote[]
 }
 
