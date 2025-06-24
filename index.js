@@ -106,7 +106,7 @@ app.post(
   ]),
   async (req, res) => {
     try {
-      const { userId, projectName, gap, totalNumbers, currentState } = req.body;
+      const { userId, projectName, gap, totalNumbers, currentState,handledBy } = req.body;
       const id = parseInt(userId);
 
       const user = await prisma.user.findUnique({ where: { id } });
@@ -130,6 +130,7 @@ app.post(
           userId: id,
           image1,
           image2,
+          handledBy
         },
       });
 
