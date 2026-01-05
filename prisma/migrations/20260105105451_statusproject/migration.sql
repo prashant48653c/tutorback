@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "Status" AS ENUM ('ASSIGNED', 'UNDERREVIEW', 'APPROVED', 'REJECTED');
+
+-- AlterTable
+ALTER TABLE "Project" ADD COLUMN     "status" "Status" NOT NULL DEFAULT 'ASSIGNED';

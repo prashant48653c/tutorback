@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  
 }
 
 datasource db {
@@ -14,40 +13,51 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
   name      String
   image1    String?
   password  String
   image2    String?
-  projects  Project[]  
-  
-  createdAt DateTime @default(now())
+  projects  Project[]
+  role      Role @default(USER)
+  createdAt DateTime  @default(now())
+}
+
+enum Role {
+  ADMIN
+  USER
 }
 
 model Project {
-  id           Int          @id @default(autoincrement())
+  id           Int         @id @default(autoincrement())
   userId       Int
-  user         User         @relation(fields: [userId], references: [id])
+  user         User        @relation(fields: [userId], references: [id])
   projectName  String
   totalNumbers String
-  image1       String?       @default("https://www.gravatar.com/avatar/?d=mp")
-  image2       String?        @default("https://www.gravatar.com/avatar/?d=mp")
+  image1       String?     @default("https://www.gravatar.com/avatar/?d=mp")
+  image2       String?     @default("https://www.gravatar.com/avatar/?d=mp")
   gap          String?
-  currentState Int          @default(0)
-  handledBy    String?  @default("Self-assigned")
-  passedTime   String?   @default("0")        // how much time has passed
+  currentState Int         @default(0)
+  handledBy    String?     @default("Self-assigned")
+  assignedBy   Int? // admin Id
+  passedTime   String?     @default("0") // how much time has passed
   pauseNotes   PauseNote[]
+  resultProof  String      @default("")
+  status    Status @default(ASSIGNED)
+}
+enum Status {
+ASSIGNED
+UNDERREVIEW
+APPROVED
+REJECTED
 }
 
-
-
 model PauseNote {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   pausedAt  String
-  note      String @default("No note")
+  note      String  @default("No note")
   projectId Int
-  project   Project  @relation(fields: [projectId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id])
 }
