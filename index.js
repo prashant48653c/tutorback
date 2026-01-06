@@ -73,7 +73,7 @@ app.post(
       res.status(201).json({ message: "Signup successful", user: user });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: "Error creating user" });
+      res.status(500).json({ message: "Error creating user",data:error  });
     }
   }
 );
@@ -94,7 +94,7 @@ app.post("/login", async (req, res) => {
     res.json({ message: "Login successful", user: user });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error logging in" });
+    res.status(500).json({ message: "Error logging in",data:error  });
   }
 });
 
@@ -149,7 +149,7 @@ const aId=parseInt(adminId);
       res.json({ message: "Project creation successful", project });
     } catch (error) {
       console.error("Project creation error:", error);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Internal server error", data:error });
     }
   }
 );
@@ -197,7 +197,7 @@ app.patch("/project/:id", async (req, res) => {
     res.json({ project: updatedProject });
   } catch (error) {
     console.error("Error updating project:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error",data:error });
   }
 });
 
