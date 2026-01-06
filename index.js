@@ -337,6 +337,9 @@ app.post("/users", async (req, res) => {
       select: {
         id: true,
         name: true,
+        role:true,
+        email:true,
+        projects:true
       },
     });
 
