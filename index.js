@@ -10,8 +10,8 @@ const prisma = new PrismaClient();
 app.use(
   cors({
     origin: "*",
-    methods: ["GET", "POST", "PATCH"],
-  })
+    methods: ["GET", "POST", "PATCH", "DELETE", "PUT"],
+  }),
 );
 app.use("/uploads", express.static("uploads"));
 
@@ -73,9 +73,9 @@ app.post(
       res.status(201).json({ message: "Signup successful", user: user });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: "Error creating user",data:error  });
+      res.status(500).json({ message: "Error creating user", data: error });
     }
-  }
+  },
 );
 
 // Login route
@@ -94,7 +94,7 @@ app.post("/login", async (req, res) => {
     res.json({ message: "Login successful", user: user });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error logging in",data:error  });
+    res.status(500).json({ message: "Error logging in", data: error });
   }
 });
 
@@ -113,15 +113,18 @@ app.post(
         totalNumbers,
         currentState,
         handledBy,
-        adminId
+        adminId,
       } = req.body;
       const id = parseInt(userId);
-const aId=parseInt(adminId);
-      const user = await prisma.user.findUnique({ where: { id } });
-      if (!user) {
-        return res.status(401).json({ message: "Invalid User" });
+      const aId = parseInt(adminId);
+      if (id != -1) {
+        const user = await prisma.user.findUnique({ where: { id } });
+        if (!user) {
+          return res.status(401).json({ message: "Invalid User" });
+        }
       }
-      console.log(req.files)
+
+      console.log(req.files);
 
       const image1 = `${process.env.BASE_URL}/${
         req.files["image1"] ? req.files["image1"][0].path : ""
@@ -129,35 +132,34 @@ const aId=parseInt(adminId);
       const image2 = `${process.env.BASE_URL}/${
         req.files["image2"] ? req.files["image2"][0].path : ""
       }`;
-
+      console.log(id);
       const project = await prisma.project.create({
         data: {
           projectName,
           gap: gap.toString(),
           totalNumbers,
           currentState: parseInt(currentState),
-          userId: id,
+          userId: id === -1 ? null : id,
+          status: id === -1 ? "NOTASSIGNED" : "ASSIGNED",
           image1,
           image2,
           handledBy,
-          assignedBy:aId,
-
-
+          assignedBy: aId,
         },
       });
 
       res.json({ message: "Project creation successful", project });
     } catch (error) {
       console.error("Project creation error:", error);
-      res.status(500).json({ message: "Internal server error", data:error });
+      res.status(500).json({ message: "Internal server error", data: error });
     }
-  }
+  },
 );
 
 // Update the project currentState
 app.patch("/project/:id", async (req, res) => {
   const id = parseInt(req.params.id);
-    
+
   const {
     currentState,
     pauseAt,
@@ -166,7 +168,6 @@ app.patch("/project/:id", async (req, res) => {
     handledBy,
     projectName,
     gap,
-    
   } = req.body;
 
   // Prepare data object dynamically
@@ -177,7 +178,7 @@ app.patch("/project/:id", async (req, res) => {
   dataToUpdate.handledBy = handledBy;
   dataToUpdate.projectName = projectName;
   dataToUpdate.gap = gap;
-  
+
   // Only create pauseNote if both fields exist
   if (pauseAt !== undefined && note) {
     dataToUpdate.pauseNotes = {
@@ -197,61 +198,119 @@ app.patch("/project/:id", async (req, res) => {
     res.json({ project: updatedProject });
   } catch (error) {
     console.error("Error updating project:", error);
-    res.status(500).json({ message: "Internal server error",data:error });
+    res.status(500).json({ message: "Internal server error", data: error });
   }
 });
 
-app.patch("/project/active/:id",upload.fields([ { name: "completionImage", maxCount: 1 }]), async (req, res) => {
-  const id = parseInt(req.params.id);
-     const image = `${process.env.BASE_URL}/${
-        req.files["completionImage"] ? req.files["completionImage"][0].path : ""
-      }`;
-      if(!image){
-        return res.json({message:"Image is required"});
-      }
-  const {
-    currentState,
-    pauseAt,
-    note,
-    passedTime,
-    handledBy,
-    projectName,
-    gap,
-    status
-  } = req.body;
-
-  // Prepare data object dynamically
-  const dataToUpdate = {};
-
-  dataToUpdate.currentState = parseInt(currentState);
-  dataToUpdate.passedTime = passedTime;
-  dataToUpdate.handledBy = handledBy;
-  dataToUpdate.projectName = projectName;
-  dataToUpdate.gap = gap;
-  dataToUpdate.status=status;
-  dataToUpdate.resultProof=image
-  // Only create pauseNote if both fields exist
-  if (pauseAt !== undefined && note) {
-    dataToUpdate.pauseNotes = {
-      create: {
-        pausedAt: pauseAt,
-        note: note,
-      },
-    };
-  }
-  console.log(dataToUpdate);
+app.delete("/project/:id", async (req, res) => {
   try {
-    const updatedProject = await prisma.project.update({
-      where: { id },
-      data: dataToUpdate,
+    const id = parseInt(req.params.id);
+    const project = await prisma.project.delete({
+      where: { id: id },
     });
 
-    res.json({ project: updatedProject });
+    res.json({ message: "Project has been deleted" });
   } catch (error) {
-    console.error("Error updating project:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.json({ message: "Something went wrong" });
   }
 });
+
+app.delete("/user/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const user = await prisma.user.delete({
+      where: { id: id },
+    });
+
+    res.json({ message: "User has been deleted" });
+  } catch (error) {
+    res.json({ message: "Something went wrong" });
+  }
+});
+
+app.post("/admin/:id", async (req, res) => {
+  try {
+    console.log("Here");
+
+    const id = parseInt(req.params.id);
+    const userId = parseInt(req.body.userId);
+    const user = await prisma.user.findFirst({
+      where: { id },
+    });
+    if (user.role != "ADMIN") {
+      res.json({ message: "Only admin is allowed!" });
+      return;
+    }
+    const newAdmin = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        role: "ADMIN",
+      },
+    });
+    console.log(newAdmin);
+
+    res.json({ message: "User is now a admin!" });
+    return;
+  } catch (error) {
+    res.json({ message: "Something went wrong" });
+  }
+});
+
+app.patch(
+  "/project/active/:id",
+  upload.fields([{ name: "completionImage", maxCount: 1 }]),
+  async (req, res) => {
+    const id = parseInt(req.params.id);
+    const image = `${process.env.BASE_URL}/${
+      req.files["completionImage"] ? req.files["completionImage"][0].path : ""
+    }`;
+    if (!image) {
+      return res.json({ message: "Image is required" });
+    }
+    const {
+      currentState,
+      pauseAt,
+      note,
+      passedTime,
+      handledBy,
+      projectName,
+      gap,
+      status,
+    } = req.body;
+
+    // Prepare data object dynamically
+    const dataToUpdate = {};
+
+    dataToUpdate.currentState = parseInt(currentState);
+    dataToUpdate.passedTime = passedTime;
+    dataToUpdate.handledBy = handledBy;
+    dataToUpdate.projectName = projectName;
+    dataToUpdate.gap = gap;
+    dataToUpdate.status = status;
+    dataToUpdate.resultProof = image;
+    // Only create pauseNote if both fields exist
+    if (pauseAt !== undefined && note) {
+      dataToUpdate.pauseNotes = {
+        create: {
+          pausedAt: pauseAt,
+          note: note,
+        },
+      };
+    }
+    console.log(dataToUpdate);
+    try {
+      const updatedProject = await prisma.project.update({
+        where: { id },
+        data: dataToUpdate,
+      });
+
+      res.json({ project: updatedProject });
+    } catch (error) {
+      console.error("Error updating project:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+);
 
 app.get("/projects/:userId", async (req, res) => {
   const userId = parseInt(req.params.userId);
@@ -316,14 +375,12 @@ app.get("/projects/:userId", async (req, res) => {
 // Get all users except admin
 app.post("/users", async (req, res) => {
   try {
-    console.log("Haha ",req.body)
     const id = req.body.id;
-    console.log(id)
 
     const user = await prisma.user.findFirst({
       where: { id: parseInt(id) },
     });
-    console.log(user)
+    console.log(user);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -337,14 +394,15 @@ app.post("/users", async (req, res) => {
       select: {
         id: true,
         name: true,
-        role:true,
-        email:true,
-        projects:true
+        role: true,
+        email: true,
+        projects: true,
       },
     });
 
-    return res.status(200).json({data:users,message:"User retrived succesfully!"})
-
+    return res
+      .status(200)
+      .json({ data: users, message: "User retrived succesfully!" });
   } catch (error) {
     console.log("Error ", error);
     return res.status(404).json({ message: error.message });
@@ -352,75 +410,85 @@ app.post("/users", async (req, res) => {
 });
 
 // Submit the result image
-app.patch("/submission",  upload.fields([ { name: "image" }]),async(req,res)=>{
-  try {
-    const {projectId,userId,totalTime}=req.body;
-     const image = `${process.env.BASE_URL}/${
-      req.files["image"] ? req.files["image"][0].path : ""
-    }`;
+app.patch(
+  "/submission",
+  upload.fields([{ name: "image" }]),
+  async (req, res) => {
+    try {
+      const { projectId, userId, totalTime } = req.body;
+      const image = `${process.env.BASE_URL}/${
+        req.files["image"] ? req.files["image"][0].path : ""
+      }`;
 
-    const project = await prisma.project.findFirst({
-      where:{
-        id:parseInt(projectId)
+      const project = await prisma.project.findFirst({
+        where: {
+          id: parseInt(projectId),
+        },
+      });
+      if (!project) {
+        return res.status(500).json({ message: "Project not found!" });
       }
-    });
-    if(!project){
-     return res.status(500).json({ message: 'Project not found!' });
-    }
 
-     if(project.userId != parseInt(userId)){
-     return res.status(500).json({ message: 'Project not created by user!' });
-    }
-    await prisma.project.update({
-      where:{
-        id:parseInt(projectId),
-        resultProof:image,
-        status:"UNDERREVIEW"
-
+      if (project.userId != parseInt(userId)) {
+        return res
+          .status(500)
+          .json({ message: "Project not created by user!" });
       }
-    })
+      await prisma.project.update({
+        where: {
+          id: parseInt(projectId),
+          resultProof: image,
+          status: "UNDERREVIEW",
+        },
+      });
 
-    return res.status(201).json({message:"Image have been submitted!"})
-  } catch (error) {
-    console.error("Error fetching projects:", error);
-    res.status(500).json({ message: error.message });
-  }
-})
+      return res.status(201).json({ message: "Image have been submitted!" });
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ message: error.message });
+    }
+  },
+);
 
 // Change status of project
-app.patch("/change-status",async(req,res)=>{
+app.patch("/change-status", async (req, res) => {
   try {
-    const {projectId,userId,status}=req.body;
-    
+    const { projectId, userId, status } = req.body;
 
     const project = await prisma.project.findFirst({
-      where:{
-        id:parseInt(projectId)
-      }
-    });
-    if(!project){
-     return res.status(500).json({ message: 'Project not found!' });
-    }
-
-     if(project.assignedBy != parseInt(userId)){
-     return res.status(500).json({ message: 'Only admin can change status!' });
-    }
-    await prisma.project.update({
-      where:{
-        id:parseInt(projectId),
+      where: {
+        id: parseInt(projectId),
       },
-      data:{
-         status:status
-      }
-    })
+    });
+    if (!project) {
+      return res.status(500).json({ message: "Project not found!" });
+    }
 
-    return res.status(201).json({message:"Image have been submitted!"})
+    if (project.assignedBy != parseInt(userId)) {
+      return res.status(500).json({ message: "Only admin can change status!" });
+    }
+
+    const updateData = {
+      status,
+    };
+
+    // Only reset userId to -1 when status becomes NOTASSIGNED
+    if (status === "NOTASSIGNED") {
+      updateData.userId = null;
+    }
+    // else → leave userId as it is (don't touch it)
+
+    await prisma.project.update({
+      where: { id: parseInt(projectId) },
+      data: updateData,
+    });
+
+    return res.status(201).json({ message: "Image have been submitted!" });
   } catch (error) {
     console.error("Error fetching projects:", error);
     res.status(500).json({ message: error.message });
   }
-})
-
+});
 
 // Get all projects (Admin only)
 app.get("/admin/projects", async (req, res) => {

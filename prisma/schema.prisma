@@ -32,8 +32,8 @@ enum Role {
 
 model Project {
   id           Int         @id @default(autoincrement())
-  userId       Int
-  user         User        @relation(fields: [userId], references: [id])
+  userId       Int?
+  user         User?        @relation(fields: [userId], references: [id])
   projectName  String
   totalNumbers String
   image1       String?     @default("https://www.gravatar.com/avatar/?d=mp")
@@ -52,6 +52,7 @@ ASSIGNED
 UNDERREVIEW
 APPROVED
 REJECTED
+NOTASSIGNED
 }
 
 model PauseNote {
